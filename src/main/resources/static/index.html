@@ -1,1 +1,133 @@
-<h1>Hello world!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Fortuna Box debugger</title>
+    <link rel="stylesheet" href="main.css" />
+    <!-- <link rel="icon" href="images/favicon.png" /> -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata&family=REM&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- HEADERS -->
+
+    <div class="header">
+        <h2 class="title">Fortuna Box debugger</h2>
+    
+        <div class="error" id="error" onclick="this.style.display = 'none';"></div>
+    
+        <div class="tabs">
+            <div class="tab tab-selected" id="tab-code" onclick="tabSelect('code')">Code (1)</div>
+            <div class="tab" id="tab-memory" onclick="tabSelect('memory')">Memory (2)</div>
+            <div class="tab" id="tab-selftest" onclick="tabSelect('selftest')">Self-test (3)</div>
+        </div>
+    </div>
+
+    <!-- CODE -->
+
+    <div id="code" class="code">
+        <div class="buttons">
+            <!-- <button type="button" id="step" onclick="simpleStep()">Simple Step</button> -->
+            <button type="button" id="step" onclick="step()">Step (s)</button>
+            <button type="button" id="next" onclick="next()">Next (n)</button>
+            <button type="button" id="run" onclick="run()">Run (r)</button>
+            <button type="button" id="step" onclick="reset()">Reset (w)</button>
+            <button type="button" id="step" onclick="recompileAndReset()">Recompile & Reset (x)</button>
+            <select id="symbols" onchange="goToAddress(this.value)">
+                <option>Symbols...</option>
+            </select>
+            <div class="running" id="running" style="display: none;">Running...</div>
+        </div>
+        <div class="code-area">
+            <div id="code-debug" class="code-debug">
+                <!-- use: code-line -->
+            </div>
+            <div class="registers">
+                <table>
+                    <tr><td class="reg-name">A</td><td id="reg-af" class="register"></td><td class="reg-name">BC</td><td id="reg-bc" class="register"></td></tr>
+                    <tr><td class="reg-name">DE</td><td id="reg-de" class="register"></td><td class="reg-name">HL</td><td id="reg-hl" class="register"></td></tr>
+                    <tr><td class="reg-name">IX</td><td id="reg-ix" class="register"></td><td class="reg-name">IY</td><td id="reg-iy" class="register"></td></tr>
+                    <tr><td class="reg-name">PC</td><td id="reg-pc" class="register">0000</td><td class="reg-name">SP</td><td id="reg-sp" class="register"></td></tr>
+                    <tr><td class="reg-name">AF'</td><td id="reg-afx" class="register"></td><td class="reg-name">BC'</td><td id="reg-bcx" class="register"></td></tr>
+                    <tr><td class="reg-name">DE'</td><td id="reg-dex" class="register"></td><td class="reg-name">HL'</td><td id="reg-hlx" class="register"></td></tr>
+                </table>
+                <div>
+                    <input type="checkbox" id="flag-s" onclick="return false;">S
+                    <input type="checkbox" id="flag-z" onclick="return false;">Z
+                    <input type="checkbox" id="flag-h" onclick="return false;">H
+                </div>
+                <div>
+                    <input type="checkbox" id="flag-n" onclick="return false;">N
+                    <input type="checkbox" id="flag-c" onclick="return false;">C
+                    <input type="checkbox" id="flag-pv" onclick="return false;">P/V
+                </div>
+                <div style="margin-top: 16px;">Stack:</div>
+                <div>&nbsp;&ShortUpArrow;&ShortDownArrow;</div>
+                <div id="stack-0">----</div>
+                <div id="stack-1">----</div>
+                <div id="stack-2">----</div>
+                <div id="stack-3">----</div>
+                <div id="stack-4">----</div>
+                <div id="stack-5">----</div>
+                <div id="stack-6">----</div>
+                <div id="stack-7">----</div>
+                <div style="margin-top: 16px;">Bank: <span id="bank"></span></div>
+                <div><span style="text-decoration: overline;">RAMONLY</span>: <span id="ramonly"></span></div>
+            </div>
+        </div>
+        <div>
+            <input type="checkbox" onclick="advancedChecked(this);">Advanced</input>
+            <input type="checkbox" id="show-address" onclick="showAddressChecked(this);">Show address/opcodes</input>
+        </div>
+        
+        <div class="advanced" style="display: none;" id="advancedText">
+            <div class="buttons">
+                <button type="button" id="step" onclick="advancedStepCycle();">Single cycle</button>
+                <button type="button" id="next" onclick="e('advanced-body').innerHTML = '';">Clear</button>
+            </div>
+            <div class="advanced-text">
+                <table class="advanced-table">
+                    <thead>
+                        <tr><th>#</th><th>ADDR</th><th>DATA</th><th>M1</th><th>IORQ</th><th>BUSAK</th><th>WAIT</th><th>INT</th><th>WR</th><th>RD</th><th>MREQ</th></tr>
+                    </thead>
+                    <tbody id="advanced-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MEMORY -->
+
+    <div id="memory" class="memory" style="display: none;">
+        <div class="memory-header">
+            <div class="page" ondblclick="updatePage()">Page: <span id="memory-page">0x00</span></div>
+            <button type="button" id="step" onclick="memoryChangePage(-1);">&lt;&lt;</button>
+            <button type="button" id="next" onclick="memoryChangePage(1);">&gt;&gt;</button>
+        </div>
+        <div class="memory-array">
+            <table id="memory-holder">
+                <thead>
+                    <tr><th class="memory-head"></th><th>_0</th><th>_1</th><th>_2</th><th>_3</th><th>_4</th><th>_5</th><th>_6</th><th>_7</th><th>_8</th><th>_9</th><th>_A</th><th>_B</th><th>_C</th><th>_D</th><th>_E</th><th>_F</th><th></th></tr>
+                </thead>
+                <tbody id="memory-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SELF-TEST -->
+
+    <div id="selftest" class="selftest" style="display: none;">
+        <button onclick="runSelfTest()">Run self-test</button>
+        <div class="selftest-results" id="selftest-results" style="selftest-results"></div>
+    </div>
+
+    <script src="debugger.js"></script>
+</body>
+</html>
